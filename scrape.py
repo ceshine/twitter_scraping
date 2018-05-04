@@ -7,13 +7,18 @@ import datetime
 
 
 # edit these three variables
-user = 'realdonaldtrump'
-start = datetime.datetime(2010, 1, 1)  # year, month, day
-end = datetime.datetime(2016, 12, 7)  # year, month, day
+keyword = 'search term here'
+start = datetime.datetime(2018, 4, 25)  # year, month, day
+end = datetime.datetime(2018, 5, 4)  # year, month, day
 
 # only edit these if you're having problems
-delay = 1  # time to wait on each page load before reading the page
-driver = webdriver.Safari()  # options are Chrome() Firefox() Safari()
+delay = 5  # time to wait on each page load before reading the page
+max_tweets_per_day = 500  # Prevent too many scroll-downs
+options = webdriver.ChromeOptions()
+options.binary_location = "/usr/bin/google-chrome"
+# options.add_argument('--proxy-server=http://127.0.0.1:11233')
+options.add_argument('headless')
+driver = webdriver.Chrome('/opt/chromedriver', chrome_options=options)
 
 
 # don't mess with this stuff
@@ -21,22 +26,29 @@ twitter_ids_filename = 'all_ids.json'
 days = (end - start).days + 1
 id_selector = '.time a.tweet-timestamp'
 tweet_selector = 'li.js-stream-item'
-user = user.lower()
+# user = user.lower()
 ids = []
+
 
 def format_day(date):
     day = '0' + str(date.day) if len(str(date.day)) == 1 else str(date.day)
-    month = '0' + str(date.month) if len(str(date.month)) == 1 else str(date.month)
+    month = '0' + str(date.month) if len(str(date.month)
+                                         ) == 1 else str(date.month)
     year = str(date.year)
     return '-'.join([year, month, day])
 
+
 def form_url(since, until):
-    p1 = 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A'
-    p2 =  user + '%20since%3A' + since + '%20until%3A' + until + 'include%3Aretweets&src=typd'
+    p1 = 'https://twitter.com/search?f=tweets&vertical=default&q='
+    p2 = keyword + '%20since%3A' + since + '%20until%3A' + \
+        until + '&src=typd'
+    # + 'include%3Aretweets&src=typd'
     return p1 + p2
+
 
 def increment_day(date, i):
     return date + datetime.timedelta(days=i)
+
 
 for day in range(days):
     d1 = format_day(increment_day(start, 0))
@@ -51,9 +63,10 @@ for day in range(days):
         found_tweets = driver.find_elements_by_css_selector(tweet_selector)
         increment = 10
 
-        while len(found_tweets) >= increment:
+        while increment <= max_tweets_per_day + 10 and len(found_tweets) >= increment:
             print('scrolling down to load more tweets')
-            driver.execute_script('window.scrollTo(0, document.body.scrollHeight);')
+            driver.execute_script(
+                'window.scrollTo(0, document.body.scrollHeight);')
             sleep(delay)
             found_tweets = driver.find_elements_by_css_selector(tweet_selector)
             increment += 10
@@ -62,7 +75,8 @@ for day in range(days):
 
         for tweet in found_tweets:
             try:
-                id = tweet.find_element_by_css_selector(id_selector).get_attribute('href').split('/')[-1]
+                id = tweet.find_element_by_css_selector(
+                    id_selector).get_attribute('href').split('/')[-1]
                 ids.append(id)
             except StaleElementReferenceException as e:
                 print('lost element reference', tweet)

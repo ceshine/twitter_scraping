@@ -8,18 +8,14 @@ import zlib
 from tweepy import TweepError
 from time import sleep
 
-# CHANGE THIS TO THE USER YOU WANT
-user = 'realdonaldtrump'
-
 with open('api_keys.json') as f:
     keys = json.load(f)
 
 auth = tweepy.OAuthHandler(keys['consumer_key'], keys['consumer_secret'])
 auth.set_access_token(keys['access_token'], keys['access_token_secret'])
 api = tweepy.API(auth)
-user = user.lower()
-output_file = '{}.json'.format(user)
-output_file_short = '{}_short.json'.format(user)
+output_file = 'collected_tweets.json'
+output_file_short = 'collected_tweets_short.json'
 compression = zipfile.ZIP_DEFLATED
 
 with open('all_ids.json') as f:
@@ -48,21 +44,24 @@ print('creating master json file')
 with open(output_file, 'w') as outfile:
     json.dump(all_data, outfile)
 
-print('creating ziped master json file')
-zf = zipfile.ZipFile('{}.zip'.format(user), mode='w')
-zf.write(output_file, compress_type=compression)
-zf.close()
+# print('creating ziped master json file')
+# zf = zipfile.ZipFile('{}.zip'.format(user), mode='w')
+# zf.write(output_file, compress_type=compression)
+# zf.close()
 
 results = []
 
+
 def is_retweet(entry):
     return 'retweeted_status' in entry.keys()
+
 
 def get_source(entry):
     if '<' in entry["source"]:
         return entry["source"].split('>')[1].split('<')[0]
     else:
         return entry["source"]
+
 
 with open(output_file) as json_data:
     data = json.load(json_data)
@@ -75,7 +74,8 @@ with open(output_file) as json_data:
             "favorite_count": entry["favorite_count"],
             "source": get_source(entry),
             "id_str": entry["id_str"],
-            "is_retweet": is_retweet(entry)
+            "is_retweet": is_retweet(entry),
+            "screen_name": entry["user"]["screen_name"]
         }
         results.append(t)
 
@@ -85,9 +85,11 @@ with open(output_file_short, 'w') as outfile:
 
 with open(output_file_short) as master_file:
     data = json.load(master_file)
-    fields = ["favorite_count", "source", "text", "in_reply_to_screen_name", "is_retweet", "created_at", "retweet_count", "id_str"]
+    fields = ["favorite_count", "source", "text", "in_reply_to_screen_name",
+              "is_retweet", "created_at", "retweet_count", "id_str", "screen_name"]
     print('creating CSV version of minimized json master file')
-    f = csv.writer(open('{}.csv'.format(user), 'w'))
+    f = csv.writer(open('collected_tweets.csv', 'w'))
     f.writerow(fields)
     for x in data:
-        f.writerow([x["favorite_count"], x["source"], x["text"], x["in_reply_to_screen_name"], x["is_retweet"], x["created_at"], x["retweet_count"], x["id_str"]])
+        f.writerow([x["favorite_count"], x["source"], x["text"], x["in_reply_to_screen_name"],
+                    x["is_retweet"], x["created_at"], x["retweet_count"], x["id_str"], x["screen_name"]])
